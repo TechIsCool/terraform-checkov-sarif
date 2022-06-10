@@ -1,0 +1,49 @@
+name: Checkov
+
+on:
+  push:
+    branches:
+      - main
+
+permissions: read-all
+
+jobs:
+  checkov:
+    name: checkov
+    permissions:
+      actions: read
+      contents: read # for actions/checkout to fetch code
+      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+
+      - name: Run Checkov action
+        id: checkov
+        uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf
+        with:
+          directory: .
+          #check: CKV_AWS_1 # optional: run only a specific check_id. can be comma separated list
+          #skip_check: CKV_AWS_2 # optional: skip a specific check_id. can be comma separated list
+          #quiet: true # optional: display only failed checks
+          soft_fail: true # optional: do not return an error code if there are failed checks
+          framework: terraform # optional: run only on a specific infrastructure {cloudformation,terraform,kubernetes,all}
+          output_format: sarif # optional: the output format, one of: cli, json, junitxml, github_failed_only, or sarif. Default: sarif
+          download_external_modules: true # optional: download external terraform modules from public git repositories and terraform registry
+          log_level: DEBUG # optional: set log level. Default WARNING
+          #config_file: path/this_file
+          #baseline: cloudformation/.checkov.baseline # optional: Path to a generated baseline file. Will only report results not in the baseline.
+          #container_user: 1000 # optional: Define what UID and / or what GID to run the container under to prevent permission issues
+
+      - name: Expose report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: SARIF results
+          path: results.sarif
+
+      - name: Upload result to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@27ea8f8fe5977c00f5b37e076ab846c5bd783b96
+        with:
+          sarif_file: 'results.sarif'
